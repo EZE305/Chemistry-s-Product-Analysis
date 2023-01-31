@@ -1,0 +1,956 @@
+---
+title: "Product_Analysis_for_Chemistry"
+author: "Emmanuel Duarte"
+date: "2023-01-05"
+output: html_document
+---
+
+```{r}
+install.packages("reshape2")
+library(reshape2)
+install.packages("tidyverse")
+library("tidyverse")
+
+chem <- read.csv("C:\\Users\\Owner\\OneDrive\\Desktop\\databases4project\\AnrescoSamples1021to0123.csv")
+#view(chem)
+
+colnames(chem)
+view(chem)
+```
+
+For my Capstone Project I reached out to my previous employer "Chemistry" and received all the Quality Control(QC) analytical tests as well as the Certificate of Analysis (COA) test results for every product manufactured during the time the company has been active. Chemistry is a cannabis extraction company and during my time there I was the lab manager and the person in charge of the QC at every step of production, from intake to final product. These test results show the cannabinoid concentrations for Flower, Tinctures, Various Edibles, Vapor Cartridges(Live Resin and FSO(Full Spectrum Oil)), Cannabis Powder (for pressing pills), and Distillate (Isolated d9THC). As a part of this report I've been in direct contact with the CEO and Marketing director to answer some interesting Marketing questions and see if there has been something hiding in this data that that could be used. Chemistry based their niche in the market on something called Full-Spectrum; the claim is that its oil is the best representation of the "flower" in a concentrated form. This is because we do a relatively simply refinement process that allows for the retention of various cannabinoids (active chemicals found in Cannabis and Hemp eg. THC, CBD, THCA, CBDA, CBG, THCV,CBN just to name a few) There are about 24 cannabinoids that analytical labs test for although there are people still discovering new compounds as well as synthesizing them in a lab setting. Cannabis/Hemp also contain Essecial oils that we refer to as Terpenes. Terpenes influence the medicinal effect and give the flower its aroma and when smoked its flavor. Cannabinoids and terpenes are going to be the main focus of this analysis. I've been given the task to compare the ratios of these two groups of compounds from their flower form to their concentrated form in order to prove exactly how "full spectrum" their products are. I'll try my best to explain the analysis process as it pertains to this somewhat esoteric data. 
+
+These reports give a very detailed and somewhat excessive amount of information back. My first step will be cleaning up the data to keep only relevant information. 
+```{r}
+
+Important Information for categorizing data. 
+"Description" "Lot.Batch.." "Category" "Sub.Category" "Strain.Name" "Strain.Type"
+
+Cannabinoids
+"d9.THC..mg.g."  "CBD..mg.g."  "CBDA..mg.g." "d8.THC..mg.g." 
+"CBDV..mg.g." "CBN..mg.g." "CBG..mg.g." "CBC..mg.g." "CBCA..mg.g." 
+"CBGA..mg.g." "Total.THC.mg.g" "Total.CBD.mg.g"
+
+Terpenes
+"Terpinolene...."                                   "Eudesmol...."                                     
+"α.Pinene...."                                      "β.Pinene...."                                     
+"Camphene...."                                      "Eucalyptol...."                                   
+"Isopulegol...."                                    "Menthol...."                                      
+"Borneol...."                                       "Trans.Beta.Ocimene...."                           
+"Cis.Beta.Ocimene...."                              "Geraniol...."                                     
+"Linalool...."                                      "Guaiol...."                                       
+"α.Bisabolol...."                                   "α.Terpinene...."                                  
+"Citronellol...."                                   "δ.3.Carene...."                                   
+"Cis.Nerolidol...."                                 "Trans.Nerolidol...."                              
+"Limonene...."                                      "P.Cymene...."                                     
+"γ.Terpinene...."                                   "α.Terpineol...."                                  
+"ß.Myrcene...."                                     "CaryophylleneOxide...."                           
+"α.Humulene...."                                    "ß.Caryophyllene...."
+```
+
+I found all the columns that I needed for this part of the analysis. I'll make a new df with just these values to be able to parse through it easier. 
+```{r}
+simpleChem <- chem %>% select(Description,Lot.Batch.., Category, Sub.Category, Strain.Name, Strain.Type, d9.THC..mg.g.,THCA..mg.g., d8.THC..mg.g., THCV..mg.g.,THCVA..mg.g., CBD..mg.g.,  CBDA..mg.g.,  CBDV..mg.g., CBN..mg.g., CBG..mg.g., CBC..mg.g., CBCA..mg.g., CBGA..mg.g., Total.THC.mg.g, Total.CBD.mg.g, Terpinolene....,Eudesmol....,α.Pinene....,β.Pinene...., Camphene...., Eucalyptol...., Isopulegol...., Menthol...., Borneol...., Trans.Beta.Ocimene....,Cis.Beta.Ocimene....,Geraniol....,Linalool....,Guaiol...., α.Bisabolol....,                              α.Terpinene....,Citronellol....,δ.3.Carene....,Cis.Nerolidol....,Trans.Nerolidol....,Limonene...., P.Cymene...., γ.Terpinene....,α.Terpineol...., ß.Myrcene...., CaryophylleneOxide....,α.Humulene...., ß.Caryophyllene....)
+
+view(simpleChem)
+#write.csv(simpleChem, file = "simpleChem.csv")
+```
+I would like to first simply compare the total cannabinoids, but no such group exists in this dataframe. I will make a new column that adds all cannabinoids in mg/g format. 
+
+```{r}
+#I am unable to add these together because there are non-numeric values in the DF rows "ND" for the cannabinoids that were not detected. I will change these to NA to be able to work with those values. 
+
+cannabinoid_columns <- c("d9.THC..mg.g.", "THCA..mg.g.", "THCV..mg.g.", "THCVA..mg.g.", "d8.THC..mg.g.", "CBD..mg.g.", "CBDA..mg.g.", "CBDV..mg.g.", "CBN..mg.g.", "CBG..mg.g.", "CBC..mg.g.", "CBCA..mg.g.", "CBGA..mg.g.")
+
+view(cannabinoid_columns)
+terps_together <- c("Terpinolene....",                                   "Eudesmol....",                                     
+"α.Pinene...." ,                                     "β.Pinene...." ,                                    
+"Camphene....",                                      "Eucalyptol....",                                   
+"Isopulegol....",                                    "Menthol....",                                      
+"Borneol....",                                       "Trans.Beta.Ocimene....",                           
+"Cis.Beta.Ocimene....",                              "Geraniol....",                                     
+"Linalool....",                                      "Guaiol....",                                       
+"α.Bisabolol....",                                   "α.Terpinene....",                                  
+"Citronellol....",                                   "δ.3.Carene....",                                   
+"Cis.Nerolidol....",                                 "Trans.Nerolidol....",                              
+"Limonene....",                                      "P.Cymene....",                                     
+"γ.Terpinene....",                                   "α.Terpineol....",                                  
+"ß.Myrcene....",                                     "CaryophylleneOxide....",                           
+"α.Humulene....",                                    "ß.Caryophyllene....")
+
+simpleChem <- simpleChem %>%
+  mutate_at(vars(cannabinoid_columns), as.numeric)
+
+simpleChem <- simpleChem %>%
+  mutate(total_cannabinoidsMg.g = rowSums(select(., cannabinoid_columns), na.rm = TRUE))
+
+simpleChem <- simpleChem %>%
+  mutate_at(vars(terps_together), as.numeric)
+
+simpleChem <- simpleChem %>%
+  mutate(total_terpsMg.g = rowSums(select(., terps_together), na.rm = TRUE))
+
+view(simpleChem)
+
+
+#Now I created a simplified total cannabinoids column in mg/g as well as a total terpene content column in mg/g. I want to now group by strain name in order to compare tests of the same strain name but in flower form vs. concentrate form. 
+
+```
+
+```{r}
+simpleChem <- simpleChem %>%
+  group_by(Description)
+simpleChem <- simpleChem %>%
+  arrange(Description)
+
+
+#The strains that I can do a comparison of ratios between cannabinoid concentrations and terpene content between flower and concentrate form are only the ones that we did a QC test for before it was processed into an oil. There are not too many examples so I will list them all to do an analysis of each individual one. 
+
+#Cannabinoids Only- Gelonade, Lemon Mac, Orange Durban, Strawnana Frosting, Apricot Trainwreck,Jungle Pound Cake
+
+#Cannabinoids and Terps- Lady Benbow, Pineapple Wonder, Purple Wreck, Royal Cherry Kush, Strawberry Banana Live, Super Lemon Haze Live, XJ13, ACDC Flower/ACDC Orally Consumed Concentrate (Same Flower infused into Coconut oil),Gas and Roses, Grease Monkey, Jack Herrer, 
+
+#Terps only- Sapphire Tsu
+
+#Fresh vs Cured Terps-Gas and Roses, 
+
+#Started doing the above and realized many of the columns don't have the strain name. I will Have to use the description to group and find matching pairs, but most of the rows in description have "Chemistry. " before the description. I will remove Chemistry to group them properly. 
+
+simpleChem <- simpleChem %>%
+  mutate(Description = gsub("Chemistry. ", "", Description))
+
+simpleChem <- simpleChem %>%
+  mutate(Description = gsub("Chemistry ", "", Description))
+
+simpleChem <- simpleChem %>%
+  mutate(Description = gsub("Moon Made Flower - ", "", Description))
+
+view(simpleChem)
+#write.csv(simpleChem, file = "simplerChem.csv")
+
+```
+#I will now start working strain by strain comparing the ratios of total cannabinoids and total terpenes to see how similar they are from flower to concentrated form. I will start with only the strains that have data for both.
+```{r}
+
+#Cannabinoid Only comparison between flower and fso. 
+  Gelonade <- 
+  simpleChem %>%
+  filter(grepl("Gelonade", Description)) %>%
+  group_by(Description)
+#Removed any of the rows that did not have the data that I needed. I will continue to do so throughout the analysis. My Objective is to find rows that are the same strain and are flower as well as a finished packaged product. Usually Indicated by the term Cartridge or the size of the package. 
+Gelonade <- Gelonade %>%
+  filter(Description != "Gelonade Flower QC")
+
+#Gelonade Individual Cannabinoid Formula for Columns 13 - 19
+#It made more sense to use the names of the columns rather than the column indexes. 
+#Formula to find the proportions of cannabinoids to total cannabinoids for both the Gelonade flower and the Gelonade FSO QC.
+GelIndCannProp <- Gelonade%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+view(GelIndCannProp)
+#I am making another dataframe that contains only the second row from the GelIndCann dataframe with just the individual cannabinoid proportions for Gelonade. 
+
+#Formula to select only the cannabinoid columns from the GelIndCannProp Dataframe. 
+IndCannPropGelonade <- GelIndCannProp %>% 
+  select(52:64) 
+
+#Substituted ._IndCann for an empty string to make it look cleaner on the graph. 
+colnames(IndCannPropGelonade) <- gsub("._IndCann", "", colnames(IndCannPropGelonade))
+
+
+#Needed to transpose this df to have it work in a stacked graph
+transposed_IndCannPropGelonade <- t(IndCannPropGelonade)
+#view(transposed_IndCannPropGelonade)
+
+#Needed to use the Melt function in the reshape2 package to change the dataframe to be able to make a stacked barchart. 
+transposed_IndCannPropGelonade_melt <- melt(IndCannPropGelonade, id.vars = "Description")
+#view(transposed_IndCannPropGelonade_melt)
+#I changed the variable name to Cannabinoids to make it more clear on the dataframe. 
+colnames(transposed_IndCannPropGelonade_melt)[colnames(transposed_IndCannPropGelonade_melt) == "variable"] <- "Cannabinoids"
+
+
+ggplot(data = transposed_IndCannPropGelonade_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+```
+```{r}
+#Cannaninoid comparison between Flower and FSO for the Lady Benbow Strain. 
+  LadyBenbow <- 
+  simpleChem %>%
+  filter(grepl("Lady Benbow", Description)) %>%
+  group_by(Description)
+
+
+#Filtered Out other Lady Benbows irrelevant to this study. 
+LadyBenbow <- LadyBenbow %>%
+  filter(Description != "Lady Benbow FSO QC",
+         Description != "Lady Benbow Sleepy Tincture",
+         Description != "Lady Benbow Tincture", 
+         Description != "Lady Benbow Tincture (30ml)",
+         total_terpsMg.g != 0.00000
+         )
+#LadyBenbow
+#Lady Benbow Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+LadyIndCannProp <- LadyBenbow%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+view(LadyIndCannProp)
+
+IndCannPropLady <- LadyIndCannProp %>% 
+  select(52:64) 
+colnames(IndCannPropLady) <- gsub("._IndCann", "", colnames(IndCannPropLady))
+
+
+
+transposed_IndCannPropLady <- t(IndCannPropLady)
+#view(transposed_IndCannPropLady)
+
+transposed_IndCannPropLady_melt <- melt(IndCannPropLady, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropLady_melt)[colnames(transposed_IndCannPropLady_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropLady_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+
+```
+```{r}
+#Terpene comparison between Flower and FSO for the Lady Benbow Strain. 
+  LadyBenbow <- 
+  simpleChem %>%
+  filter(grepl("Lady Benbow", Description)) %>%
+  group_by(Description)
+
+
+#Filtered Out other Lady Benbows irrelevant to this study. 
+LadyBenbow <- LadyBenbow %>%
+  filter(Description != "Lady Benbow FSO QC",
+         Description != "Lady Benbow Sleepy Tincture",
+         Description != "Lady Benbow Tincture", 
+         Description != "Lady Benbow Tincture (30ml)",
+         total_terpsMg.g != 0.00000
+         )
+#view(LadyBenbow)
+
+#Lady Benbow Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+LadyIndTerpProp <- LadyBenbow%>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+#view(LadyIndTerpProp)
+
+IndTerpPropLady <- LadyIndTerpProp %>% 
+  select(52:79) 
+colnames(IndTerpPropLady) <- gsub("...._IndTerp", "", colnames(IndTerpPropLady))
+
+#view(IndTerpPropLady)
+
+transposed_IndTerpPropLady <- t(IndTerpPropLady)
+
+transposed_IndTerpPropLady_melt <- melt(IndTerpPropLady, id.vars = "Description")
+
+#Change the column Variable to Terpenes. 
+colnames(transposed_IndTerpPropLady_melt)[colnames(transposed_IndTerpPropLady_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropLady_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+
+
+
+
+```
+
+
+```{r}
+#Cannabinoid and terpene comparison between Flower and FSO.
+  LemonMac <- 
+  simpleChem %>%
+  filter(grepl("Lemon Mac", Description)) %>%
+  group_by(Description)
+
+LemonMac <- LemonMac %>%
+  filter(Description != "Lemon Mac FSO",
+         Description != "Lemon Mac FSO part2 QC",)
+
+#view(LemonMac)
+#Lemon Mac Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+LemonMIndCannProp <- LemonMac%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+#view(LemonMIndCannProp)
+
+IndCannPropLemonM <- LemonMIndCannProp %>% 
+  select(52:64) 
+view(IndCannPropLemonM)
+
+colnames(IndCannPropLemonM) <- gsub("._IndCann", "", colnames(IndCannPropLemonM))
+
+
+transposed_IndCannPropLemonM <- t(IndCannPropLemonM)
+#view(transposed_IndCannPropLemonM)
+
+transposed_IndCannPropLemonM_melt <- melt(IndCannPropLemonM, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropLemonM_melt)[colnames(transposed_IndCannPropLemonM_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropLemonM_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+```
+
+```{r}
+  ODB <- 
+  simpleChem %>%
+  filter(grepl("Orange Durban", Description)) %>%
+  group_by(Description)
+view(ODB)
+
+ODB <- ODB %>%
+  filter(Description != "Orange Durban FSO",
+         Description != "Orange Durban FSO QC")
+
+
+#Orange Durban Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+ODBIndCannProp <- ODB%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+#view(ODBIndCannProp)
+
+IndCannPropODB <- ODBIndCannProp %>% 
+  select(52:64) 
+#view(IndCannPropODB)
+
+colnames(IndCannPropODB) <- gsub("._IndCann", "", colnames(IndCannPropODB))
+
+
+transposed_IndCannPropODB <- t(IndCannPropODB)
+#view(transposed_IndCannPropLemonM)
+
+transposed_IndCannPropODB_melt <- melt(IndCannPropODB, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropODB_melt)[colnames(transposed_IndCannPropODB_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropODB_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+```
+
+
+```{r}
+  SNN <- 
+  simpleChem %>%
+  filter(grepl("Strawnana Frosting", Description)) %>%
+  group_by(Description)
+
+SNN <- SNN %>%
+  filter(Description != "Strawnana Frosting Live FSO")
+View(SNN)
+
+#Orange Durban Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+SNNIndCannProp <- SNN%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+#view(SNNIndCannProp)
+
+IndCannPropSNN <- SNNIndCannProp %>% 
+  select(52:64) 
+#view(IndCannPropSNN)
+
+colnames(IndCannPropSNN) <- gsub("._IndCann", "", colnames(IndCannPropSNN))
+
+
+transposed_IndCannPropSNN <- t(IndCannPropSNN)
+#view(transposed_IndCannPropSNN)
+
+transposed_IndCannPropSNN_melt <- melt(IndCannPropSNN, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropSNN_melt)[colnames(transposed_IndCannPropSNN_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropSNN_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+
+```
+
+
+```{r}
+
+PW <- 
+  simpleChem %>%
+  filter(grepl("Pineapple Wonder", Description)) %>%
+  group_by(Description)
+
+
+PW <- PW %>%
+  filter(Description != "Pineapple Wonder THC Tincture 30 mL",
+         Description != "Pineapple Wonder FSO",
+          Description != "Pineapple Wonder Cartridge"
+         )
+
+#Orange Durban Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+PWIndCannProp <- PW%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+#view(PWIndCannProp)
+
+IndCannPropPW <- PWIndCannProp %>% 
+  select(52:64) 
+#view(IndCannPropPW)
+
+colnames(IndCannPropPW) <- gsub("._IndCann", "", colnames(IndCannPropPW))
+
+
+transposed_IndCannPropPW <- t(IndCannPropPW)
+#view(transposed_IndCannPropSNN)
+
+transposed_IndCannPropPW_melt <- melt(IndCannPropPW, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropPW_melt)[colnames(transposed_IndCannPropPW_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropPW_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+
+```
+```{r}
+PW <- 
+  simpleChem %>%
+  filter(grepl("Pineapple Wonder", Description)) %>%
+  group_by(Description)
+
+
+PW <- PW %>%
+  filter(Description != "Pineapple Wonder THC Tincture 30 mL",
+         Description != "Pineapple Wonder FSO",
+          Description != "Pineapple Wonder Cartridge"
+         )
+
+PWIndTerpProp <- PW%>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropPW <- PWIndTerpProp %>% 
+  select(52:79) 
+#Code to remove ..._IndTerp from the individual terpenes in the transposed dataframe. 
+
+colnames(IndTerpPropPW) <- gsub("...._IndTerp", "", colnames(IndTerpPropPW))
+
+transposed_IndTerpPropPW <- t(IndTerpPropPW)
+
+transposed_IndTerpPropPW_melt <- melt(IndTerpPropPW, id.vars = "Description")
+
+#Change the column Variable to Terpenes. 
+colnames(transposed_IndTerpPropPW_melt)[colnames(transposed_IndTerpPropPW_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropPW_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+
+
+```
+```{r}
+#Royal Cherry Kush Cannabinoid analysis
+RCK <- 
+  simpleChem %>%
+  filter(grepl("Royal Cherry Kush", Description)) %>%
+  group_by(Description)
+
+RCK <- RCK %>%
+  filter(Description != "Royal Cherry Kush FSO QC",
+         Lot.Batch.. != "MGRCK210615",
+         )
+
+view(RCK)
+RCKIndCannProp <- RCK%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+IndCannPropRCK <- RCKIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropRCK) <- gsub("._IndCann", "", colnames(IndCannPropRCK))
+
+
+transposed_IndCannPropRCK <- t(IndCannPropRCK)
+#view(transposed_IndCannPropRCK)
+
+transposed_IndCannPropRCK_melt <- melt(IndCannPropRCK, id.vars = "Description")
+
+#Change the column Variable to Cannabinoids. 
+colnames(transposed_IndCannPropRCK_melt)[colnames(transposed_IndCannPropRCK_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropRCK_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+
+
+```
+```{r}
+#Royal Cherry Kush Terpene proportions
+
+RCK <- 
+  simpleChem %>%
+  filter(grepl("Royal Cherry Kush", Description)) %>%
+  group_by(Description)
+
+RCK <- RCK %>%
+  filter(Description != "Royal Cherry Kush FSO QC",
+         Lot.Batch.. != "MGRCK210615",
+         )
+RCKIndTerpProp <- RCK%>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropRCK <- RCKIndTerpProp %>% 
+  select(52:79) 
+#Code to remove ..._IndTerp from the individual terpenes in the transposed dataframe. 
+
+colnames(IndTerpPropRCK) <- gsub("...._IndTerp", "", colnames(IndTerpPropRCK))
+
+transposed_IndTerpPropRCK <- t(IndTerpPropRCK)
+
+transposed_IndTerpPropRCK_melt <- melt(IndTerpPropRCK, id.vars = "Description")
+
+colnames(transposed_IndTerpPropRCK_melt)[colnames(transposed_IndTerpPropRCK_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropRCK_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+
+
+```
+
+```{r}
+#Only Terpene analysis Being done on Strawberry banana. 
+  SBN <- 
+  simpleChem %>%
+  filter(grepl("Strawberry Banana", Description)) %>%
+  group_by(Description)
+#view(SBN)
+
+SBNIndTerpProp <- SBN%>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropSBN <- SBNIndTerpProp %>% 
+  select(52:79) 
+#Code to remove ..._IndTerp from the individual terpenes in the transposed dataframe. 
+
+colnames(IndTerpPropSBN) <- gsub("...._IndTerp", "", colnames(IndTerpPropSBN))
+
+transposed_IndTerpPropSBN <- t(IndTerpPropSBN)
+
+transposed_IndTerpPropSBN_melt <- melt(IndTerpPropSBN, id.vars = "Description")
+
+colnames(transposed_IndTerpPropSBN_melt)[colnames(transposed_IndTerpPropSBN_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropSBN_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+```
+
+```{r}
+#Super Lemon Haze Cannabinoid Proportions 
+  SLH <- 
+  simpleChem %>%
+  filter(grepl("Super Lemon Haze", Description)) %>%
+  group_by(Description)
+
+
+SLH <- SLH %>%
+  filter(Description != "Super Lemon Haze Fresh Terpenes",
+         Description != "Super Lemon Haze FSO QC 01/13/22"
+         )
+view(SLH)
+
+#Orange Durban Cannabinoid Proportion formulas for a comparison stacked bar chart. 
+SLHIndCannProp <- SLH%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+IndCannPropSLH <- SLHIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropSLH) <- gsub("._IndCann", "", colnames(IndCannPropSLH))
+
+
+transposed_IndCannPropSLH <- t(IndCannPropSLH)
+
+transposed_IndCannPropSLH_melt <- melt(IndCannPropSLH, id.vars = "Description")
+
+colnames(transposed_IndCannPropSLH_melt)[colnames(transposed_IndCannPropSLH_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropSLH_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack", width = 0.7)
+  
+
+```
+
+```{r}
+#Super Lemon Haze Live Terpenes compared to SLH Live terpene cartridge. 
+  SLHT <- 
+  simpleChem %>%
+  filter(grepl("Super Lemon Haze", Description)) %>%
+  group_by(Description)
+
+SLHT <- SLHT %>%
+  filter(Description != "Super Lemon Haze FSO QC",
+         Description != "Super Lemon Haze FSO QC 01/13/22"
+         )
+view(SLHT)
+
+
+SLHTIndTerpProp <- SLHT %>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropSLHT <- SLHTIndTerpProp %>% 
+  select(52:79) 
+#Code to remove ..._IndTerp from the individual terpenes in the transposed dataframe. 
+
+colnames(IndTerpPropSLHT) <- gsub("...._IndTerp", "", colnames(IndTerpPropSLHT))
+
+transposed_IndTerpPropSLHT <- t(IndTerpPropSLHT)
+
+transposed_IndTerpPropSLHT_melt <- melt(IndTerpPropSLHT, id.vars = "Description")
+
+colnames(transposed_IndTerpPropSLHT_melt)[colnames(transposed_IndTerpPropSLHT_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropSLHT_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+```
+
+```{r}
+#XJ13 Cannabinoid Analysis 
+  XJ <- 
+  simpleChem %>%
+  filter(grepl("XJ", Description)) %>%
+  group_by(Description)
+
+view(XJ)
+
+XJ <- XJ %>%
+  filter(Description != "PL 440 (LS, XJ)CRUDE",
+         Description != "INFUSED XJ-13 FSO",
+         Description != "CHM-LSXJ190826-FSO-QC-02",
+         Description != "CHM-LSXJ190826-FSO-QC",
+         Description != "XJ-13 Uno Pod Vape Cartridge",
+         Description != "XJ-13 Terpenes",
+         Description != "XJ-13 Pod"
+         )
+
+#view(XJ)
+
+XJIndCannProp <- XJ%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+IndCannPropXJ <- XJIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropXJ) <- gsub("._IndCann", "", colnames(IndCannPropXJ))
+
+
+transposed_IndCannPropXJ <- t(IndCannPropXJ)
+
+transposed_IndCannPropXJ_melt <- melt(IndCannPropXJ, id.vars = "Description")
+
+colnames(transposed_IndCannPropXJ_melt)[colnames(transposed_IndCannPropXJ_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropXJ_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+```
+```{r}
+#XJ13 Terpene Analysis 
+  XJT <- 
+  simpleChem %>%
+  filter(grepl("XJ", Description)) %>%
+  group_by(Description)
+
+view(XJT)
+
+XJT <- XJT %>%
+  filter(Description != "PL 440 (LS, XJ)CRUDE",
+         Description != "INFUSED XJ-13 FSO",
+         Description != "CHM-LSXJ190826-FSO-QC-02",
+         Description != "CHM-LSXJ190826-FSO-QC",
+         Description != "XJ-13 Uno Pod Vape Cartridge",
+         Description != "XJ-13 Terpenes",
+         Description != "XJ-13 Pod"
+         )
+
+XJTIndTerpProp <- XJT %>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropXJT <- XJTIndTerpProp %>% 
+  select(52:79) 
+
+colnames(IndTerpPropXJT) <- gsub("...._IndTerp", "", colnames(IndTerpPropXJT))
+
+transposed_IndTerpPropXJT <- t(IndTerpPropXJT)
+
+transposed_IndTerpPropXJT_melt <- melt(IndTerpPropXJT, id.vars = "Description")
+
+colnames(transposed_IndTerpPropXJT_melt)[colnames(transposed_IndTerpPropXJT_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropXJT_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+
+
+```
+```{r}
+#AC/DC Cannabinoid Analysis
+  ACD <- 
+  simpleChem %>%
+  filter(grepl("AC/DC", Description)) %>%
+  group_by(Description)
+
+ACD <- ACD %>%
+  filter(Description != "AC/DC Tincture QC",
+         Description != "AC/DC Tincture",
+         Description != "AC/DC 30 mL CBD Tincture",
+         Description != "AC/DC CBD 30 mL Tincture",
+         Description != "AC/DC Tincture (30ml)",
+         Description != "Uninfused AC/DC FSO",
+         Lot.Batch.. != "FRFACD210910"
+         )
+ACDIndCannProp <- ACD%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+
+IndCannPropACD <- ACDIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropACD) <- gsub("._IndCann", "", colnames(IndCannPropACD))
+
+
+transposed_IndCannPropACD <- t(IndCannPropACD)
+
+transposed_IndCannPropACD_melt <- melt(IndCannPropACD, id.vars = "Description")
+
+colnames(transposed_IndCannPropACD_melt)[colnames(transposed_IndCannPropACD_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropACD_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+```
+```{r}
+  ACDT <- 
+  simpleChem %>%
+  filter(grepl("AC/DC", Description)) %>%
+  group_by(Description)
+
+ACDT <- ACDT %>%
+  filter(Description != "AC/DC Tincture QC",
+         Description != "AC/DC Tincture",
+         Description != "AC/DC 30 mL CBD Tincture",
+         Description != "AC/DC CBD 30 mL Tincture",
+         Description != "AC/DC Tincture (30ml)",
+         Description != "Uninfused AC/DC FSO",
+         Lot.Batch.. != "FRFACD210910"
+         )
+
+
+ACDTIndTerpProp <- ACDT %>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropACDT <- ACDTIndTerpProp %>% 
+  select(52:79) 
+
+colnames(IndTerpPropACDT) <- gsub("...._IndTerp", "", colnames(IndTerpPropACDT))
+
+transposed_IndTerpPropACDT <- t(IndTerpPropACDT)
+
+transposed_IndTerpPropACDT_melt <- melt(IndTerpPropACDT, id.vars = "Description")
+
+colnames(transposed_IndTerpPropACDT_melt)[colnames(transposed_IndTerpPropACDT_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropACDT_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack", width = 0.7)+
+  theme(legend.text = element_text(size = 8))+
+  theme(legend.key.size = unit(4, "mm"))
+
+
+```
+```{r}
+#Jungle Pound Cake Cannabinoid Only Analysis
+  JPC <- 
+  simpleChem %>%
+  filter(grepl("Jungle Pound Cake", Description)) %>%
+  group_by(Description)
+
+JPC <- JPC %>%
+  filter(Description != "Jungle Pound Cake FSO")
+
+
+JPCIndCannProp <- JPC%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+
+IndCannPropJPC <- JPCIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropJPC) <- gsub("._IndCann", "", colnames(IndCannPropJPC))
+
+
+transposed_IndCannPropJPC <- t(IndCannPropJPC)
+
+transposed_IndCannPropJPC_melt <- melt(IndCannPropJPC, id.vars = "Description")
+
+colnames(transposed_IndCannPropJPC_melt)[colnames(transposed_IndCannPropJPC_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropJPC_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+
+
+```
+```{r}
+#Gas and Roses Fresh Vs. Cured Terpene analysis
+  GNR <- 
+  simpleChem %>%
+  filter(grepl("Gas & Roses", Description)) %>%
+  group_by(Description)
+
+GNR <- GNR %>%
+  filter(Description != "Gas & Roses Trim QC",
+         Description != "Gas & Roses FSO QC",
+         Description != "Gas & Roses Live Drip Diamonds 1 g"
+         )
+view(GNR)
+
+GNRIndTerpProp <- GNR %>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropGNR <- GNRIndTerpProp %>% 
+  select(52:79) 
+
+colnames(IndTerpPropGNR) <- gsub("...._IndTerp", "", colnames(IndTerpPropGNR))
+
+transposed_IndTerpPropGNR <- t(IndTerpPropGNR)
+
+transposed_IndTerpPropGNR_melt <- melt(IndTerpPropGNR, id.vars = "Description")
+
+colnames(transposed_IndTerpPropGNR_melt)[colnames(transposed_IndTerpPropGNR_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropGNR_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack")
+
+```
+```{r}
+#Apricot Trainwreck Cannabinoid Analysis
+  APW <- 
+  simpleChem %>%
+  filter(grepl("Apricot Trainwreck", Description)) %>%
+  group_by(Description)
+view(APW)
+
+APWIndCannProp <- APW%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+
+IndCannPropAPW <- APWIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropAPW) <- gsub("._IndCann", "", colnames(IndCannPropAPW))
+
+
+transposed_IndCannPropAPW <- t(IndCannPropAPW)
+
+transposed_IndCannPropAPW_melt <- melt(IndCannPropAPW, id.vars = "Description")
+
+colnames(transposed_IndCannPropAPW_melt)[colnames(transposed_IndCannPropAPW_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropAPW_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+```
+```{r}
+#Apricot Trainwreck Cannabinoid Analysis
+  Jack <- 
+  simpleChem %>%
+  filter(grepl("Jack", Description)) %>%
+  group_by(Description)
+
+Jack <- Jack %>%
+  filter(Lot.Batch.. != "MMJCT210811",
+         Lot.Batch.. != "MMJHR210614",
+         Lot.Batch.. != "FRFJHR220915-1G",
+         Lot.Batch.. != "CHM-MMJHR200824-FSO",
+         Lot.Batch.. != "CHM-FRFJHR220329-FSO",
+         Lot.Batch.. != "CHM-MMJCT210712-FSO",
+         Lot.Batch.. != "CHM-FRFJHR220329-FSO",
+         Lot.Batch.. != "CHM-MMJHR200824-FSO",
+         )
+
+view(Jack)
+
+JackIndCannProp <- Jack%>%
+  mutate_at(vars(d9.THC..mg.g.:CBGA..mg.g.),list(IndCann=~./total_cannabinoidsMg.g))
+
+
+IndCannPropJack <- JackIndCannProp %>% 
+  select(52:64) 
+
+colnames(IndCannPropJack) <- gsub("._IndCann", "", colnames(IndCannPropJack))
+
+
+transposed_IndCannPropJack <- t(IndCannPropJack)
+
+transposed_IndCannPropJack_melt <- melt(IndCannPropJack, id.vars = "Description")
+
+colnames(transposed_IndCannPropJack_melt)[colnames(transposed_IndCannPropJack_melt) == "variable"] <- "Cannabinoids"
+
+ggplot(data = transposed_IndCannPropJack_melt, aes(x = Description, y = value, fill = Cannabinoids)) +
+  geom_col(position = "stack")
+
+```
+
+```{r}
+#Jack Herer Terpene Analysis
+  JT <- 
+  simpleChem %>%
+  filter(grepl("Jack", Description)) %>%
+  group_by(Description)
+
+JT <- JT %>%
+  filter(Lot.Batch.. != "MMJCT210811",
+         Lot.Batch.. != "MMJHR210614",
+         Lot.Batch.. != "FRFJHR220915-1G",
+         Lot.Batch.. != "CHM-MMJHR200824-FSO",
+         Lot.Batch.. != "CHM-FRFJHR220329-FSO",
+         Lot.Batch.. != "CHM-MMJCT210712-FSO",
+         Lot.Batch.. != "CHM-FRFJHR220329-FSO",
+         Lot.Batch.. != "CHM-MMJHR200824-FSO",
+         )
+
+JTIndTerpProp <- JT %>%
+  mutate_at(vars(Terpinolene....:ß.Caryophyllene....),list(IndTerp=~./total_terpsMg.g))
+
+IndTerpPropJT <- JTIndTerpProp %>% 
+  select(52:79) 
+
+colnames(IndTerpPropJT) <- gsub("...._IndTerp", "", colnames(IndTerpPropJT))
+
+transposed_IndTerpPropJT <- t(IndTerpPropJT)
+
+transposed_IndTerpPropJT_melt <- melt(IndTerpPropJT, id.vars = "Description")
+
+colnames(transposed_IndTerpPropJT_melt)[colnames(transposed_IndTerpPropJT_melt) == "variable"] <- "Terpenes"
+
+ggplot(data = transposed_IndTerpPropJT_melt, aes(x = Description, y = value, fill = Terpenes)) +
+  geom_col(position = "stack", width = 0.7)+
+  theme(legend.text = element_text(size = 8))+
+  theme(legend.key.size = unit(4, "mm"))
+```
+```
+
+
+
